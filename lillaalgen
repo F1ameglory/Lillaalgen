@@ -1,0 +1,149 @@
+import pygame
+import random
+import time
+import sys
+
+# Initialize Pygame
+pygame.init()
+
+# Constants
+WIDTH = 1000
+HEIGHT = 800
+FPS = 60
+MOOSE_SIZE = 50
+ICE_SIZE = 20
+MOOSE_SPEED = 5
+BASE_ICE_SPEED = 3
+BLUE = (0, 0, 255)
+DARK_GREEN = (0, 100, 0)
+WHITE = (255, 255, 255)
+
+# Create the game window
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Moose Crossing")
+
+# Load game assets and scale them
+moose_image = pygame.image.load("/Users/moa/Desktop/lilla-algen/assets/moose.jpeg")
+moose_image = pygame.transform.scale(moose_image, (MOOSE_SIZE, MOOSE_SIZE))
+ice_image = pygame.image.load("/Users/moa/Desktop/lilla-algen/assets/is.jpg")
+ice_image = pygame.transform.scale(ice_image, (ICE_SIZE, ICE_SIZE))
+
+# Initialize game variables
+moose_x = WIDTH - MOOSE_SIZE
+moose_y = HEIGHT // 2 - MOOSE_SIZE // 2
+score = 0
+game_over = False
+you_win = False
+restart = False
+
+# Initialize ice objects list
+ice_objects = []
+
+# Ice frequency parameters
+base_ice_frequency = 2.0  # Increase the base frequency
+ice_frequency_increment = 0.1
+min_ice_frequency = 0.2
+current_ice_frequency = base_ice_frequency
+
+# Game loop
+running = True
+clock = pygame.time.Clock()
+last_ice_time = time.time()
+
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            # Check for "Enter" key press to restart
+            if (game_over or you_win) and event.key == pygame.K_RETURN:
+                restart = True
+
+    if restart:
+        # Reset the game
+        moose_x = WIDTH - MOOSE_SIZE
+        moose_y = HEIGHT // 2 - MOOSE_SIZE // 2
+        score = 0
+        game_over = False
+        you_win = False
+        ice_objects = []
+        current_ice_frequency = base_ice_frequency
+        restart = False
+
+    if not game_over and not you_win:
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] and moose_x > 50:
+            moose_x -= MOOSE_SPEED
+        if keys[pygame.K_RIGHT] and moose_x < WIDTH - MOOSE_SIZE:
+            moose_x += MOOSE_SPEED
+        if keys[pygame.K_UP] and moose_y > 0:
+            moose_y -= MOOSE_SPEED
+        if keys[pygame.K_DOWN] and moose_y < HEIGHT - MOOSE_SIZE:
+            moose_y += MOOSE_SPEED
+
+        # Check if it's time to add a new ice object
+        if time.time() - last_ice_time > current_ice_frequency:
+            last_ice_time = time.time()
+            # Generate ice_x outside the dark green areas
+            ice_x = random.randint(50, WIDTH - 50 - ICE_SIZE)
+            new_ice_speed = BASE_ICE_SPEED + score * 0.1
+            ice_objects.append((ice_x, 0, new_ice_speed))
+
+        # Update ice objects' positions and check for collisions
+        i = 0
+        while i < len(ice_objects):
+            ice_x, ice_y, ice_speed = ice_objects[i]
+            ice_y += ice_speed
+            ice_objects[i] = (ice_x, ice_y, ice_speed)
+
+            if moose_x < ice_x + ICE_SIZE and moose_x + MOOSE_SIZE > ice_x and moose_y < ice_y + ICE_SIZE and moose_y + MOOSE_SIZE > ice_y:
+                game_over = True
+
+            if ice_y > HEIGHT:
+                ice_objects.pop(i)
+                score += 1
+            else:
+                i += 1
+
+        if moose_x <= 50:
+            you_win = True
+
+        # Increase ice frequency with time
+        if current_ice_frequency > min_ice_frequency:
+            current_ice_frequency -= ice_frequency_increment
+
+    screen.fill(BLUE)
+
+    pygame.draw.rect(screen, DARK_GREEN, (0, 0, 50, HEIGHT))
+    pygame.draw.rect(screen, DARK_GREEN, (WIDTH - 50, 0, 50, HEIGHT))
+
+    if not game_over and not you_win:
+        screen.blit(moose_image, (moose_x, moose_y))
+        for x, y, _ in ice_objects:
+            screen.blit(ice_image, (x, y))
+    elif game_over:
+        font = pygame.font.Font(None, 72)
+        game_over_text = font.render("Game Over", True, WHITE)
+        screen.blit(game_over_text, (WIDTH // 2 - 150, HEIGHT // 2 - 36))
+        font = pygame.font.Font(None, 36)
+        restart_text = font.render("Press Enter to Restart", True, WHITE)
+        screen.blit(restart_text, (WIDTH // 2 - 170, HEIGHT // 2 + 36))
+    elif you_win:
+        font = pygame.font.Font(None, 72)
+        you_win_text = font.render("Älgfest", True, WHITE)
+        screen.blit(you_win_text, (WIDTH // 2 - 100, HEIGHT // 2 - 36))
+        total_score_text = font.render(f"Score: {score}", True, WHITE)
+        screen.blit(total_score_text, (WIDTH // 2 - 100, HEIGHT // 2 + 36))
+        font = pygame.font.Font(None, 36)
+        restart_text = font.render("Press Enter to Restart", True, WHITE)
+        screen.blit(restart_text, (WIDTH // 2 - 170, HEIGHT // 2 + 100))
+
+    font = pygame.font.Font(None, 36)
+    score_text = font.render(f"Score: {score}", True, WHITE)
+    screen.blit(score_text, (10, 10))
+
+    pygame.display.flip()
+
+    clock.tick(FPS)
+
+pygame.quit()
